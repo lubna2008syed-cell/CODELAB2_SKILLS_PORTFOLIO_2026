@@ -37,7 +37,7 @@ container.pack(side="top", fill="both", expand=True)
 def switch_to_frame(frame):
     frame.tkraise()
 
-# make a full window page with a centred inner area of an fixed size
+# make a full window page with an centred inner area of a fixed size
 def createPage(colour, width=420, height=390):
     page = tk.Frame(container, bg=colour)
     page.place(x=0, y=0, relwidth=1, relheight=1)
@@ -229,24 +229,55 @@ def resizeBackground(event):
 
 menuFrame.bind("<Configure>", resizeBackground)
 
-# centred card on top of the image
-card = tk.Frame(menuFrame, bg=BG)
-card.place(relx=0.5, rely=0.5, anchor="center", width=300, height=290)
+# scaling list
+scalables = []
 
-tk.Label(card, text="Maths Quiz", font=("Arial", 22, "bold"),
-         bg=BG, fg=TEXT).place(x=40, y=20, width=220, height=45)
+def registerScalable(inner, baseW, baseH):
+    items = []
+    for widget in inner.winfo_children():
+        info = widget.place_info()
+        f = tkfont.Font(font=widget.cget("font"))
+        height = int(info["height"]) if info.get("height") else None
+        items.append((widget, int(info["x"]), int(info["y"]), int(info["width"]),
+                      height, f.actual("family"), abs(f.actual("size")), f.actual("weight")))
+    scalables.append((inner, baseW, baseH, items))
 
-tk.Label(card, text="Choose your difficulty", font=("Arial", 13),
-         bg=BG, fg=TEXT).place(x=30, y=75, width=240, height=30)
+def rescale(event=None):
+    s = max(1, min(container.winfo_width() / 420, container.winfo_height() / 390))
 
-tk.Button(card, text="Easy", bg="#9DBB99", fg=WHITE,
-          command=lambda: startQuiz(1)).place(x=70, y=120, width=160, height=40)
+    for inner, baseW, baseH, items in scalables:
+        inner.place(width=int(baseW * s), height=int(baseH * s))
+        for widget, x, y, w, h, family, size, weight in items:
+            options = dict(x=int(x * s), y=int(y * s), width=int(w * s))
+            if h:
+                options["height"] = int(h * s)
+            widget.place(**options)
+            widget.config(font=(family, max(1, round(size * s)), weight))
 
-tk.Button(card, text="Moderate", bg="#83A9D5", fg=WHITE,
-          command=lambda: startQuiz(2)).place(x=70, y=175, width=160, height=40)
+# Display the difficulty menu
+def displayMenu():
+    card = tk.Frame(menuFrame, bg=BG)
+    card.place(relx=0.5, rely=0.5, anchor="center", width=300, height=290)
 
-tk.Button(card, text="Advanced", bg="#C68CA7", fg=WHITE,
-          command=lambda: startQuiz(3)).place(x=70, y=230, width=160, height=40)
+    tk.Label(card, text="Maths Quiz", font=("Arial", 22, "bold"),
+             bg=BG, fg=TEXT).place(x=40, y=20, width=220, height=45)
+
+    tk.Label(card, text="Choose your difficulty", font=("Arial", 13),
+             bg=BG, fg=TEXT).place(x=30, y=75, width=240, height=30)
+
+    tk.Button(card, text="Easy", bg="#9DBB99", fg=WHITE,
+              command=lambda: startQuiz(1)).place(x=70, y=120, width=160, height=40)
+
+    tk.Button(card, text="Moderate", bg="#83A9D5", fg=WHITE,
+              command=lambda: startQuiz(2)).place(x=70, y=175, width=160, height=40)
+
+    tk.Button(card, text="Advanced", bg="#C68CA7", fg=WHITE,
+              command=lambda: startQuiz(3)).place(x=70, y=230, width=160, height=40)
+
+    # Register card for scaling inside the function where card exists
+    registerScalable(card, 300, 290)
+
+displayMenu()
 
 # quiz frames
 
@@ -277,34 +308,7 @@ tk.Button(resultInner, text="Play Again", bg=PURPLE, fg=WHITE,
 tk.Button(resultInner, text="Quit", bg=PURPLE, fg=WHITE,
           command=window.destroy).place(x=130, y=295, width=160, height=40)
 
-# scaling
-
-scalables = []   # (inner area, base width, base height, [widget details])
-
-def registerScalable(inner, baseW, baseH):
-    items = []
-    for widget in inner.winfo_children():
-        info = widget.place_info()
-        f = tkfont.Font(font=widget.cget("font"))
-        height = int(info["height"]) if info.get("height") else None
-        items.append((widget, int(info["x"]), int(info["y"]), int(info["width"]),
-                      height, f.actual("family"), abs(f.actual("size")), f.actual("weight")))
-    scalables.append((inner, baseW, baseH, items))
-
-def rescale(event=None):
-    # 1 = normal size (small window); grows only when there is spare room
-    s = max(1, min(container.winfo_width() / 420, container.winfo_height() / 390))
-
-    for inner, baseW, baseH, items in scalables:
-        inner.place(width=int(baseW * s), height=int(baseH * s))
-        for widget, x, y, w, h, family, size, weight in items:
-            options = dict(x=int(x * s), y=int(y * s), width=int(w * s))
-            if h:
-                options["height"] = int(h * s)
-            widget.place(**options)
-            widget.config(font=(family, max(1, round(size * s)), weight))
-
-registerScalable(card, 300, 290)
+# Register quiz and result frames for scaling
 for level in quizFrames:
     registerScalable(quizFrames[level][0].winfo_children()[0], 420, 390)
 registerScalable(resultInner, 420, 390)
